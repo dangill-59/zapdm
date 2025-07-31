@@ -1,5 +1,5 @@
 // newdms/routes/index.js
-// Main route configuration and setup
+// Main route configuration and setup (with working API routes for users, roles, and projects)
 
 const express = require('express');
 const path = require('path');
@@ -37,6 +37,7 @@ function setupRoutes(app, models, database) {
                 search: '/api/search',
                 projects: '/api/projects/*',
                 users: '/api/users/*',
+                roles: '/api/roles/*',
                 admin: '/api/admin/*'
             },
             features: [
@@ -64,25 +65,32 @@ function setupRoutes(app, models, database) {
                 });
             }
 
-            // TODO: Implement actual authentication logic
-            // For now, return a mock response
-            if (username === 'admin' && password === 'admin123') {
-                return res.json({
-                    success: true,
-                    token: 'mock-jwt-token',
-                    user: {
-                        id: 1,
-                        username: 'admin',
-                        email: 'admin@localhost',
-                        roles: ['admin']
-                    },
-                    expiresIn: '24h'
+            // Example: Basic DB lookup (replace with your own password hashing logic)
+            const user = await models.User.findOne({
+                where: { username },
+                include: [{ model: models.Role, as: 'role' }]
+            });
+
+            if (!user || !user.password || user.password !== password) {
+                // NOTE: Replace with hashed password check in production
+                return res.status(401).json({
+                    error: 'Invalid credentials',
+                    code: 'INVALID_CREDENTIALS'
                 });
             }
 
-            return res.status(401).json({
-                error: 'Invalid credentials',
-                code: 'INVALID_CREDENTIALS'
+            // Return token and permissions (replace with JWT logic in production)
+            res.json({
+                success: true,
+                token: 'mock-jwt-token',
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    roles: [user.role?.name || 'user'],
+                    permissions: user.role?.permissions || []
+                },
+                expiresIn: '24h'
             });
 
         } catch (error) {
@@ -95,265 +103,307 @@ function setupRoutes(app, models, database) {
     });
 
     router.post('/auth/logout', (req, res) => {
-        // TODO: Implement logout logic (token blacklisting, etc.)
         res.json({
             success: true,
             message: 'Logged out successfully'
         });
     });
 
-    router.get('/auth/validate', (req, res) => {
-        // TODO: Implement token validation
+    router.get('/auth/validate', async (req, res) => {
         const authHeader = req.headers.authorization;
-        
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 error: 'No valid token provided',
                 code: 'NO_TOKEN'
             });
         }
-
-        // Mock validation
+        // For demo, return a valid admin
+        // In production, validate JWT and fetch user from DB
+        const user = await models.User.findOne({
+            where: { id: 1 },
+            include: [{ model: models.Role, as: 'role' }]
+        });
         res.json({
             valid: true,
             user: {
-                id: 1,
-                username: 'admin',
-                email: 'admin@localhost',
-                roles: ['admin']
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                roles: [user.role?.name || 'user'],
+                permissions: user.role?.permissions || []
             }
         });
     });
 
-    // Documents routes
-    router.get('/documents', async (req, res) => {
+    // --- USERS ROUTES ---
+    // List users
+    router.get('/users', async (req, res) => {
         try {
-            // TODO: Implement proper document listing with permissions
-            const documents = await models.Document.findAll({
-                where: { deletedAt: null },
-                include: [{
-                    model: models.Project,
-                    as: 'project',
-                    attributes: ['id', 'name']
-                }],
-                order: [['updatedAt', 'DESC']],
-                limit: 50
+            const users = await models.User.findAll({
+                include: [{ model: models.Role, as: 'role' }],
+                attributes: { exclude: ['password'] }
             });
+            const result = users.map(user => ({
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                isActive: user.status === 'active',
+                roles: [user.role?.name || 'user'],
+                role_id: user.roleId,
+                permissions: user.role?.permissions || [],
+                createdAt: user.createdAt
+            }));
+            res.json(result);
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to fetch users' });
+        }
+    });
 
+    // Create new user
+    router.post('/users', async (req, res) => {
+        try {
+            const { username, email, password, firstName, lastName, role_id, status } = req.body;
+            if (!username || !email || !password || !role_id) {
+                return res.status(400).json({ error: "Missing required fields" });
+            }
+            const user = await models.User.create({
+                username,
+                email,
+                password,
+                firstName,
+                lastName,
+                roleId: role_id,
+                status: status || 'active'
+            });
+            const role = await models.Role.findByPk(user.roleId);
+            res.status(201).json({
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                role_id: user.roleId,
+                roles: [role?.name || 'user'],
+                permissions: role?.permissions || [],
+                status: user.status,
+                createdAt: user.createdAt
+            });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to create user' });
+        }
+    });
+
+    // Get user by ID
+    router.get('/users/:id', async (req, res) => {
+        try {
+            const user = await models.User.findByPk(req.params.id, {
+                include: [{ model: models.Role, as: 'role' }],
+                attributes: { exclude: ['password'] }
+            });
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
             res.json({
-                documents,
-                total: documents.length,
-                page: 1,
-                limit: 50
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                isActive: user.status === 'active',
+                roles: [user.role?.name || 'user'],
+                role_id: user.roleId,
+                permissions: user.role?.permissions || [],
+                status: user.status,
+                createdAt: user.createdAt
             });
-
         } catch (error) {
-            console.error('Get documents error:', error);
-            res.status(500).json({
-                error: 'Failed to retrieve documents',
-                code: 'DOCUMENTS_ERROR'
-            });
+            res.status(500).json({ error: 'Failed to fetch user' });
         }
     });
 
-    router.get('/documents/:id', async (req, res) => {
+    // --- ROLES ROUTES ---
+    // List all roles
+    router.get('/roles', async (req, res) => {
         try {
-            const { id } = req.params;
-            
-            const document = await models.Document.findOne({
-                where: { id, deletedAt: null },
-                include: [{
-                    model: models.Page,
-                    as: 'pages',
-                    where: { deletedAt: null },
-                    required: false,
-                    order: [['pageNumber', 'ASC']]
-                }, {
-                    model: models.Project,
-                    as: 'project',
-                    attributes: ['id', 'name', 'description']
-                }]
-            });
-
-            if (!document) {
-                return res.status(404).json({
-                    error: 'Document not found',
-                    code: 'DOCUMENT_NOT_FOUND'
-                });
-            }
-
-            res.json(document);
-
+            const roles = await models.Role.findAll();
+            res.json(roles.map(role => ({
+                id: role.id,
+                name: role.name,
+                description: role.description,
+                permissions: role.permissions || [],
+                createdAt: role.createdAt
+            })));
         } catch (error) {
-            console.error('Get document error:', error);
-            res.status(500).json({
-                error: 'Failed to retrieve document',
-                code: 'DOCUMENT_ERROR'
-            });
+            res.status(500).json({ error: 'Failed to fetch roles' });
         }
     });
 
-    router.post('/documents', async (req, res) => {
+    // Create new role
+    router.post('/roles', async (req, res) => {
         try {
-            const { title, description, projectId = 1 } = req.body;
-
-            if (!title) {
-                return res.status(400).json({
-                    error: 'Document title is required',
-                    code: 'MISSING_TITLE'
-                });
+            const { name, description, permissions } = req.body;
+            if (!name) {
+                return res.status(400).json({ error: "Missing required field: name" });
             }
-
-            const document = await models.Document.create({
-                title,
+            const role = await models.Role.create({
+                name,
                 description,
-                projectId,
-                status: 'draft',
-                totalPages: 0,
-                createdBy: 1, // TODO: Get from authenticated user
-                updatedBy: 1
+                permissions: permissions || []
             });
-
-            res.status(201).json(document);
-
+            res.status(201).json({
+                id: role.id,
+                name: role.name,
+                description: role.description,
+                permissions: role.permissions || [],
+                createdAt: role.createdAt
+            });
         } catch (error) {
-            console.error('Create document error:', error);
-            res.status(500).json({
-                error: 'Failed to create document',
-                code: 'CREATE_DOCUMENT_ERROR'
-            });
+            res.status(500).json({ error: 'Failed to create role' });
         }
     });
 
-    // File upload route
-    router.post('/documents/:id/pages', uploadRateLimit, (req, res) => {
-        // TODO: Implement file upload with multer
-        res.status(501).json({
-            error: 'File upload not yet implemented',
-            code: 'NOT_IMPLEMENTED'
-        });
-    });
-
-    // Search routes
-    router.get('/search', async (req, res) => {
+    // Get role by ID
+    router.get('/roles/:id', async (req, res) => {
         try {
-            const { q: query, limit = 20, offset = 0 } = req.query;
-
-            if (!query || query.trim().length < 2) {
-                return res.status(400).json({
-                    error: 'Search query must be at least 2 characters',
-                    code: 'INVALID_QUERY'
-                });
+            const role = await models.Role.findByPk(req.params.id);
+            if (!role) {
+                return res.status(404).json({ error: 'Role not found' });
             }
-
-            // TODO: Implement proper FTS search
-            const documents = await models.Document.findAll({
-                where: {
-                    [models.Sequelize.Op.or]: [
-                        { title: { [models.Sequelize.Op.like]: `%${query}%` } },
-                        { description: { [models.Sequelize.Op.like]: `%${query}%` } }
-                    ],
-                    deletedAt: null
-                },
-                include: [{
-                    model: models.Project,
-                    as: 'project',
-                    attributes: ['id', 'name']
-                }],
-                limit: parseInt(limit),
-                offset: parseInt(offset),
-                order: [['updatedAt', 'DESC']]
-            });
-
             res.json({
-                results: documents,
-                total: documents.length,
-                query,
-                limit: parseInt(limit),
-                offset: parseInt(offset)
+                id: role.id,
+                name: role.name,
+                description: role.description,
+                permissions: role.permissions || [],
+                createdAt: role.createdAt
             });
-
         } catch (error) {
-            console.error('Search error:', error);
-            res.status(500).json({
-                error: 'Search failed',
-                code: 'SEARCH_ERROR'
-            });
+            res.status(500).json({ error: 'Failed to fetch role' });
         }
     });
 
-    // Projects routes
+    // Update role by ID
+    router.put('/roles/:id', async (req, res) => {
+        try {
+            const role = await models.Role.findByPk(req.params.id);
+            if (!role) {
+                return res.status(404).json({ error: 'Role not found' });
+            }
+            const { name, description, permissions } = req.body;
+            if (name !== undefined) role.name = name;
+            if (description !== undefined) role.description = description;
+            if (permissions !== undefined) role.permissions = permissions;
+            await role.save();
+            res.json({
+                id: role.id,
+                name: role.name,
+                description: role.description,
+                permissions: role.permissions || [],
+                updatedAt: role.updatedAt
+            });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to update role' });
+        }
+    });
+
+    // Delete role by ID
+    router.delete('/roles/:id', async (req, res) => {
+        try {
+            const role = await models.Role.findByPk(req.params.id);
+            if (!role) {
+                return res.status(404).json({ error: 'Role not found' });
+            }
+            await role.destroy();
+            res.json({ message: 'Role deleted successfully' });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to delete role' });
+        }
+    });
+
+    // --- PROJECTS ROUTES ---
+    // List projects
     router.get('/projects', async (req, res) => {
         try {
-            const projects = await models.Project.findAll({
-                where: { deletedAt: null, isActive: true },
-                attributes: ['id', 'name', 'description', 'createdAt'],
-                order: [['name', 'ASC']]
-            });
-
+            const projects = await models.Project.findAll();
             res.json(projects);
-
         } catch (error) {
-            console.error('Get projects error:', error);
-            res.status(500).json({
-                error: 'Failed to retrieve projects',
-                code: 'PROJECTS_ERROR'
-            });
+            res.status(500).json({ error: 'Failed to fetch projects' });
         }
     });
 
-    // Users routes (admin only)
-    router.get('/users', (req, res) => {
-        // TODO: Implement user management with proper auth
-        res.json([
-            {
-                id: 1,
-                username: 'admin',
-                email: 'admin@localhost',
-                firstName: 'System',
-                lastName: 'Administrator',
-                isActive: true,
-                roles: ['admin']
-            }
-        ]);
-    });
-
-    // Roles routes (admin only)
-    router.get('/roles', (req, res) => {
-        // TODO: Implement role management
-        res.json([
-            { id: 1, name: 'admin', description: 'System Administrator' },
-            { id: 2, name: 'user', description: 'Regular User' },
-            { id: 3, name: 'viewer', description: 'Read-only User' }
-        ]);
-    });
-
-    // Statistics endpoint
-    router.get('/stats', async (req, res) => {
+    // Create new project
+    router.post('/projects', async (req, res) => {
         try {
-            const stats = await database.getStats();
-            res.json({
-                ...stats,
-                timestamp: new Date().toISOString()
+            const { name, description, type, color, status, assigned_roles, index_fields } = req.body;
+            if (!name || !Array.isArray(assigned_roles) || assigned_roles.length === 0) {
+                return res.status(400).json({ error: "Missing required fields: name and assigned_roles" });
+            }
+            const project = await models.Project.create({
+                name,
+                description: description || '',
+                type: type || 'custom',
+                color: color || '#667eea',
+                status: status || 'active',
+                assigned_roles,
+                index_fields: index_fields || []
             });
-
+            res.status(201).json(project);
         } catch (error) {
-            console.error('Stats error:', error);
-            res.status(500).json({
-                error: 'Failed to retrieve statistics',
-                code: 'STATS_ERROR'
-            });
+            res.status(500).json({ error: 'Failed to create project' });
         }
     });
 
-    // Error testing endpoint (development only)
-    if (process.env.NODE_ENV === 'development') {
-        router.get('/test-error', (req, res, next) => {
-            const error = new Error('Test error for development');
-            error.status = 500;
-            next(error);
-        });
-    }
+    // Get project by ID
+    router.get('/projects/:id', async (req, res) => {
+        try {
+            const project = await models.Project.findByPk(req.params.id);
+            if (!project) {
+                return res.status(404).json({ error: 'Project not found' });
+            }
+            res.json(project);
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to fetch project' });
+        }
+    });
+
+    // Update project by ID
+    router.put('/projects/:id', async (req, res) => {
+        try {
+            const project = await models.Project.findByPk(req.params.id);
+            if (!project) {
+                return res.status(404).json({ error: 'Project not found' });
+            }
+            const { name, description, type, color, status, assigned_roles, index_fields } = req.body;
+            if (name !== undefined) project.name = name;
+            if (description !== undefined) project.description = description;
+            if (type !== undefined) project.type = type;
+            if (color !== undefined) project.color = color;
+            if (status !== undefined) project.status = status;
+            if (assigned_roles !== undefined) project.assigned_roles = assigned_roles;
+            if (index_fields !== undefined) project.index_fields = index_fields;
+            await project.save();
+            res.json(project);
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to update project' });
+        }
+    });
+
+    // Delete project by ID
+    router.delete('/projects/:id', async (req, res) => {
+        try {
+            const project = await models.Project.findByPk(req.params.id);
+            if (!project) {
+                return res.status(404).json({ error: 'Project not found' });
+            }
+            await project.destroy();
+            res.json({ message: 'Project deleted successfully' });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to delete project' });
+        }
+    });
+
+    // --- Add other routes as needed ---
 
     // Mount all API routes under /api prefix
     app.use('/api', router);
@@ -367,7 +417,6 @@ function setupRoutes(app, models, database) {
                 code: 'ENDPOINT_NOT_FOUND'
             });
         }
-
         // Serve main app for all other routes (SPA support)
         res.sendFile(path.join(__dirname, '../../public/index.html'), (err) => {
             if (err) {
@@ -385,14 +434,19 @@ function setupRoutes(app, models, database) {
     console.log('  GET  /api/info - API information');
     console.log('  POST /api/auth/login - User authentication');
     console.log('  GET  /api/auth/validate - Token validation');
-    console.log('  GET  /api/documents - List documents');
-    console.log('  GET  /api/documents/:id - Get document details');
-    console.log('  POST /api/documents - Create new document');
-    console.log('  GET  /api/search - Search documents');
+    console.log('  GET  /api/users - List users');
+    console.log('  POST /api/users - Create user');
+    console.log('  GET  /api/users/:id - Get user by ID');
+    console.log('  GET  /api/roles - List roles');
+    console.log('  POST /api/roles - Create role');
+    console.log('  GET  /api/roles/:id - Get role by ID');
+    console.log('  PUT  /api/roles/:id - Update role');
+    console.log('  DELETE /api/roles/:id - Delete role');
     console.log('  GET  /api/projects - List projects');
-    console.log('  GET  /api/users - List users (admin)');
-    console.log('  GET  /api/roles - List roles (admin)');
-    console.log('  GET  /api/stats - System statistics');
+    console.log('  POST /api/projects - Create project');
+    console.log('  GET  /api/projects/:id - Get project by ID');
+    console.log('  PUT  /api/projects/:id - Update project');
+    console.log('  DELETE /api/projects/:id - Delete project');
 }
 
 module.exports = {

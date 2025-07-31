@@ -1,84 +1,76 @@
-// src/database/models/Role.js
-const BaseModel = require('./BaseModel');
-
-class Role extends BaseModel {
+class Role {
     constructor(db) {
-        super(db, 'roles');
+        this.db = db;
     }
 
-    // Get all roles with user count
-    findAllWithUserCount() {
-        return this.db.prepare(`
-            SELECT r.*, COUNT(u.id) as user_count
-            FROM roles r
-            LEFT JOIN users u ON r.id = u.role_id AND u.status = 'active'
-            GROUP BY r.id
-            ORDER BY r.created_at DESC
-        `).all();
+    async findOne({ where }) {
+        const keys = Object.keys(where);
+        const conditions = keys.map(k => `${k} = ?`).join(' AND ');
+        const values = keys.map(k => where[k]);
+        const stmt = this.db.prepare(`SELECT * FROM roles WHERE ${conditions} LIMIT 1`);
+        return stmt.get(...values) || null;
     }
 
-    // Get role with user count
-    findByIdWithUserCount(id) {
-        return this.db.prepare(`
-            SELECT r.*, COUNT(u.id) as user_count
-            FROM roles r
-            LEFT JOIN users u ON r.id = u.role_id AND u.status = 'active'
-            WHERE r.id = ?
-            GROUP BY r.id
-        `).get(id);
+    async findOrCreate({ where, defaults }) {
+        let role = await this.findOne({ where });
+        if (role) return [role, false];
+        const data = { ...defaults, ...where };
+        const created = await this.create(data);
+        return [created, true];
     }
 
-    // Check if role name exists (excluding specific role ID)
-    nameExists(name, excludeId = null) {
-        if (excludeId) {
-            return this.db.prepare(`
-                SELECT id FROM roles WHERE name = ? AND id != ?
-            `).get(name, excludeId);
+    async create(data) {
+        const stmt = this.db.prepare(
+            `INSERT INTO roles (name, description, permissions, status, created_by)
+             VALUES (?, ?, ?, ?, ?)`
+        );
+        const info = stmt.run(
+            data.name,
+            data.description,
+            JSON.stringify(data.permissions),
+            data.status,
+            data.createdBy
+        );
+        return { id: info.lastInsertRowid, ...data };
+    }
+
+    async update(id, updates) {
+        const keys = Object.keys(updates);
+        if (!keys.length) return;
+        const setClause = keys.map(k => `${k} = ?`).join(', ');
+        const values = keys.map(k => updates[k]);
+        values.push(id);
+        const stmt = this.db.prepare(`UPDATE roles SET ${setClause} WHERE id = ?`);
+        stmt.run(...values);
+    }
+
+    async findAll({ where }) {
+        if (!where) {
+            return this.db.prepare(`SELECT * FROM roles`).all();
         }
-        
-        return this.db.prepare(`
-            SELECT id FROM roles WHERE name = ?
-        `).get(name);
+        const keys = Object.keys(where);
+        const conditions = keys.map(k => `${k} = ?`).join(' AND ');
+        const values = keys.map(k => where[k]);
+        return this.db.prepare(`SELECT * FROM roles WHERE ${conditions}`).all(...values);
     }
 
-    // Create role with permissions
-    createRole(roleData) {
-        const { permissions, ...otherData } = roleData;
-        
-        return this.create({
-            ...otherData,
-            permissions: JSON.stringify(permissions || [])
+    async bulkCreate(roles) {
+        const stmt = this.db.prepare(
+            `INSERT INTO roles (name, description, permissions, status, created_by)
+             VALUES (?, ?, ?, ?, ?)`
+        );
+        const insertMany = this.db.transaction((roles) => {
+            for (const r of roles) {
+                stmt.run(
+                    r.name,
+                    r.description,
+                    JSON.stringify(r.permissions),
+                    r.status,
+                    r.createdBy
+                );
+            }
         });
-    }
-
-    // Update role with permissions
-    updateRole(id, roleData) {
-        const { permissions, ...otherData } = roleData;
-        
-        return this.update(id, {
-            ...otherData,
-            permissions: JSON.stringify(permissions || [])
-        });
-    }
-
-    // Get roles that can be assigned to projects
-    getAssignableRoles() {
-        return this.db.prepare(`
-            SELECT id, name, description 
-            FROM roles 
-            ORDER BY name
-        `).all();
-    }
-
-    // Check if role is in use by users
-    isInUse(roleId) {
-        const count = this.db.prepare(`
-            SELECT COUNT(*) as count 
-            FROM users 
-            WHERE role_id = ? AND status = 'active'
-        `).get(roleId).count;
-        
-        return count > 0;
+        insertMany(roles);
     }
 }
 

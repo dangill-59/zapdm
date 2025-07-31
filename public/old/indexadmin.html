@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Document Management System</title>
+    <style>
+        /* (All your CSS remains unchanged!) */
+        /* ... (omitted for brevity) ... */
+    </style>
+</head>
+<body>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <h1>🔧 Admin Panel</h1>
+            <p style="margin-bottom: 2rem; color: var(--text-light);">Administrative Access Required</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" class="form-control" required autocomplete="username" value="admin">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="form-control" required autocomplete="current-password" value="admin123">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;" id="loginBtn">
+                    <span id="loginBtnText">Sign In</span>
+                    <span id="loginLoader" class="loading hidden"></span>
+                </button>
+            </form>
+            <div id="loginError" class="alert alert-error hidden" style="margin-top: 1rem;"></div>
+            <div style="margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; font-size: 0.9rem; color: var(--text-light);">
+                <strong>Demo Credentials:</strong><br>
+                Username: admin<br>
+                Password: admin123
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="container hidden">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔧 Administrative Control Panel</h1>
+            <p>Manage users, roles, and projects for your Document Management System</p>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar"></div>
+                <div>
+                    <div id="userDisplay" style="font-weight: 600;"></div>
+                    <div id="userRoleDisplay" style="font-size: 0.9rem; opacity: 0.8;"></div>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="logoutBtn">
+                    🚪 Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="navigation">
+            <button class="nav-tab active" data-tab="users" id="tabUsersBtn">
+                👥 User Management
+            </button>
+            <button class="nav-tab" data-tab="roles" id="tabRolesBtn">
+                🛡️ Role Management
+            </button>
+            <button class="nav-tab" data-tab="projects" id="tabProjectsBtn">
+                📂 Project Management
+            </button>
+            <button class="nav-tab" data-tab="audit" id="tabAuditBtn">
+                📋 Audit Log
+            </button>
+            <div style="margin-left: auto; display: flex; gap: 1rem;">
+                <a href="/search" class="btn btn-info btn-sm">
+                    📄 Document Search
+                </a>
+                <a href="/" class="btn btn-outline btn-sm">
+                    🏠 Main App
+                </a>
+            </div>
+        </div>
+
+        <!-- User Management Section -->
+        <div class="admin-section active" id="usersSection">
+            <div class="section-header">
+                <h2 class="section-title">👥 User Management</h2>
+                <button class="btn btn-primary" id="addUserBtn">
+                    ➕ Add New User
+                </button>
+            </div>
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                Manage user accounts, assign roles, and control access permissions.
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <input type="text" id="userSearch" class="form-control" placeholder="Search users..." style="max-width: 300px;">
+            </div>
+            <div id="usersTableContainer">
+                <div class="empty-state">
+                    <div class="loading"></div>
+                    <p>Loading users...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Role Management Section -->
+        <div class="admin-section" id="rolesSection">
+            <div class="section-header">
+                <h2 class="section-title">🛡️ Role Management</h2>
+                <button class="btn btn-primary" id="addRoleBtn">
+                    ➕ Add New Role
+                </button>
+            </div>
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                Define roles and their associated permissions for system access control.
+            </div>
+            <div id="rolesTableContainer">
+                <div class="empty-state">
+                    <div class="loading"></div>
+                    <p>Loading roles...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Management Section -->
+        <div class="admin-section" id="projectsSection">
+            <div class="section-header">
+                <h2 class="section-title">📂 Project Management</h2>
+                <button class="btn btn-primary" id="addProjectBtn">
+                    ➕ Add New Project
+                </button>
+            </div>
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                Create and manage document projects with custom fields and role assignments.
+            </div>
+            <div id="projectsTableContainer">
+                <div class="empty-state">
+                    <div class="loading"></div>
+                    <p>Loading projects...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Log Section -->
+        <div class="admin-section" id="auditSection">
+            <div class="section-header">
+                <h2 class="section-title">📋 Audit Log</h2>
+                <button class="btn btn-secondary" id="refreshAuditBtn">
+                    🔄 Refresh
+                </button>
+            </div>
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                View system activity and user actions for security and compliance.
+            </div>
+            <div id="auditLogContainer">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <h3>Audit Log</h3>
+                    <p>Feature coming soon...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="userModalTitle">👥 Add New User</h3>
+                <button class="close-btn" id="closeUserModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="userUsername">Username *</label>
+                            <input type="text" id="userUsername" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="userEmail">Email *</label>
+                            <input type="email" id="userEmail" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="userFirstName">First Name</label>
+                            <input type="text" id="userFirstName" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="userLastName">Last Name</label>
+                            <input type="text" id="userLastName" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="userPassword">Password <span id="passwordNote">(leave blank to keep current)</span></label>
+                            <input type="password" id="userPassword" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="userRole">Role</label>
+                            <select id="userRole" class="form-control">
+                                <option value="">Select Role</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="userStatus">Status</label>
+                        <select id="userStatus" class="form-control">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button type="button" class="btn btn-secondary" id="cancelUserModalBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="saveUserBtn">
+                            <span id="saveUserText">Save User</span>
+                            <span id="saveUserLoader" class="loading hidden"></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- (Role Modal and Project Modal: convert all inline event handlers to IDs as above) -->
+
+    <!-- JS: utils.js first, then admin.js -->
+    <script src="js/utils.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

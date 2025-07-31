@@ -1636,4 +1636,30 @@
             .ocr-actions .btn {
                 width: 100%;
             }
+
+/* ==== CSP Utility Classes for Inline Style Removal ==== */
+.btn-block { width: 100%; }
+.mt-1 { margin-top: 1rem; }
+.mb-2 { margin-bottom: 2rem; }
+.text-light { color: var(--text-light); }
+.demo-credentials {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+.font-weight-600 { font-weight: 600; }
+.font-size-sm { font-size: 0.9rem; opacity: 0.8; }
+.user-search-input { max-width: 300px; }
+.ml-1 { margin-left: 1rem; }
+.flex-gap-1 { margin-left: auto; display: flex; gap: 1rem; }
+.modal-btn-row {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+/* ==== End CSP Utility Classes ==== */
         }

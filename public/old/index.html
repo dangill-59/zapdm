@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Document Search & Viewer with OCR</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <script src="js/utils.js"></script>
+</head>
+<body>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <h1>📄 Document Search</h1>
+            <p style="margin-bottom: 2rem; color: var(--text-light);">Advanced Document Management with OCR, Full-Text Search, PDF Page Splitting, Editing, Drag-and-Drop Reordering & Add Pages to Existing Documents</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" class="form-control" required autocomplete="username" value="admin">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="form-control" required autocomplete="current-password" value="admin123">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;" id="loginBtn">
+                    <span id="loginBtnText">Sign In</span>
+                    <span id="loginLoader" class="loading hidden"></span>
+                </button>
+            </form>
+            <div id="loginError" class="alert alert-error hidden" style="margin-top: 1rem;"></div>
+            <div style="margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; font-size: 0.9rem; color: var(--text-light);">
+                <strong>Demo Credentials:</strong><br>
+                Username: admin<br>
+                Password: admin123<br><br>
+                <strong>🆕 Enhanced Features:</strong><br>
+                • 🔍 OCR text extraction<br>
+                • 📝 Full-text search<br>
+                • 📄 PDF page splitting<br>
+                • ✏️ Edit document index fields<br>
+                • 🗑️ Soft delete documents<br>
+                • 🔄 Drag & drop page reordering<br>
+                • 📤 Add pages to existing documents
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="container hidden">
+        <!-- Header -->
+        <div class="header">
+            <h1>📄 Advanced Document Search & Viewer with OCR</h1>
+            <p>Find, view, edit and manage your business documents with powerful OCR text extraction, full-text search, automatic filename-based indexing, PDF page splitting, field editing, drag-and-drop page reordering, and add pages to existing documents</p>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar"></div>
+                <div>
+                    <div id="userDisplay" style="font-weight: 600;"></div>
+                    <div id="userRole" style="font-size: 0.9rem; opacity: 0.8;"></div>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="logoutBtn">
+                    🚪 Logout
+                </button>
+                <!-- Admin Panel Link -->
+                <a href="indexadmin.html" class="btn btn-outline btn-sm" style="margin-left: 1rem;">
+                    🔧 Admin Panel
+                </a>
+            </div>
+        </div>
+        <!-- Dashboard Widgets -->
+        <div class="dashboard-content">
+            <h2>Dashboard</h2>
+            <div class="dashboard-widgets">
+                <div class="widget">
+                    <h3>Quick Search</h3>
+                    <input type="text" id="quickSearchInput" class="form-control" placeholder="Search documents..." />
+                    <button class="btn btn-primary" id="quickSearchBtn">Search</button>
+                </div>
+                <div class="widget">
+                    <h3>Recent Documents</h3>
+                    <ul id="recentDocsList"></ul>
+                </div>
+            </div>
+        </div>
+        <!-- Placeholders for your advanced app features: toolbar, search, results, modals, etc. -->
+    </div>
+
+    <!-- Document Viewer Modal -->
+    <div id="documentModal" class="modal">
+        <div class="modal-content">
+            <!-- ... modal content ... -->
+        </div>
+    </div>
+    <!-- Add Document Modal -->
+    <div id="addDocumentModal" class="modal upload-modal">
+        <div class="modal-content">
+            <!-- ... add document content ... -->
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
