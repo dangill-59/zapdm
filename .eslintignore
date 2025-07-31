@@ -1,0 +1,28 @@
+# Ignore existing codebase to avoid changing working code
+backend/
+newdms/
+public/
+database/
+logs/
+uploads/
+scripts/
+*.js
+!tests/**/*.js
+!src/**/*
+
+# Node modules
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environment files
+.env*
+
+# Log files
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
